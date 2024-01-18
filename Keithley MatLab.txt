@@ -1,0 +1,99 @@
+close all
+clear all
+
+maxcurrent = 0.030; %set max current in Amps
+minvoltage = 8; %set min voltage
+maxvoltage = 9; %set max voltage
+
+numberofsteps=18;
+numsteps=num2str(numberofsteps+1);
+maxv=num2str(maxvoltage);
+maxc=num2str(maxcurrent);
+stepc=num2str(maxcurrent/numberofsteps);
+stepv=num2str((maxvoltage-minvoltage)/numberofsteps);
+minv=num2str(minvoltage); 
+
+obj1=serial('COM4','baudrate',19200,'terminator',13);
+
+% Model 2400 Specific Functions
+% Sweep current and measure back voltage
+fopen(obj1)
+fprintf(obj1,':*RST')
+% setup the 2400 to generate an SRQ on buffer full 
+fprintf(obj1,':*ESE 0')
+fprintf(obj1,':*CLS')
+fprintf(obj1,':STAT:MEAS:ENAB 1024')
+fprintf(obj1,':*SRE 1')
+% buffer set up
+fprintf(obj1,':TRAC:CLE')
+fprintf(obj1,[':TRAC:POIN ' numsteps])    % buffer size
+% Set up the Sweep
+fprintf(obj1,':SOUR:FUNC:MODE VOLT')
+fprintf(obj1,[':SOUR:VOLT:STAR ' minv])
+fprintf(obj1,[':SOUR:VOLT:STOP ' maxv])
+fprintf(obj1,[':SOUR:VOLT:STEP ' stepv])
+fprintf(obj1,':SOUR:CLE:AUTO ON')
+fprintf(obj1,':SOUR:VOLT:MODE SWE')
+fprintf(obj1,':SOUR:SWE:SPAC LIN')
+fprintf(obj1,':SOUR:DEL:AUTO OFF')
+fprintf(obj1,':SOUR:DEL 0.10')
+
+fprintf(obj1,':SENS:FUNC "CURR"')
+fprintf(obj1,':SENS:FUNC:CONC ON')
+fprintf(obj1,':SENS:CURR:RANG:AUTO ON')
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% IMPORTANT: if the unit goes into compliance, 
+% adjust the compliance or the range value
+fprintf(obj1,[':SENS:CURR:PROT:LEV ' maxc]) % voltage compliance
+% if maxvoltage>20
+%   fprintf(obj1,':SENS:VOLT:RANG 200')   % volt measurement range
+% else
+%   fprintf(obj1,':SENS:VOLT:RANG 20')   % volt measurement range
+% end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+fprintf(obj1,':SENS:CURR:NPLC 1')
+fprintf(obj1,':FORM:ELEM:SENS VOLT,CURR')
+fprintf(obj1,[':TRIG:COUN ' numsteps])
+fprintf(obj1,':TRIG:DEL 0.001')
+fprintf(obj1,':SYST:AZER:STAT OFF')
+fprintf(obj1,':SYST:TIME:RES:AUTO ON')
+fprintf(obj1,':TRAC:TST:FORM ABS')
+fprintf(obj1,':TRAC:FEED:CONT NEXT')
+fprintf(obj1,':OUTP ON')
+fprintf(obj1,':INIT')
+
+% Used the serail poll function to wait for SRQ
+pause(2);
+fprintf(obj1,':TRAC:DATA?')
+% 
+%C=fscanf(obj1,%f%);
+B = fscanf(obj1);
+A = str2num(B);
+% 
+% % parse the data & plot
+Curr=A(2:2:size(A,2));
+Volts=A(1:2:size(A,2)-1);
+% 
+figure(1);
+%line([minvoltage maxvoltage],[max(Curr) max(Curr)],'color','g','linewidth',5)
+hold on
+plot(Volts,Curr,':bo','LineWidth',0.5,...
+                'MarkerEdgeColor','k',...
+                'MarkerFaceColor','r',...
+                'MarkerSize',5)
+ylabel('Measured-current (A)'),xlabel('Source-volts (V)')
+title('Keithley 2400: Sweeps V & Measure I');
+grid on
+% reset all the registers & clean up
+% if the registers are not properly reset, 
+% subsequent runs will not work!
+fprintf(obj1,'*RST')
+fprintf(obj1,':*CLS ')
+fprintf(obj1,':*SRE 0')
+% % make sure STB bit is 0
+% STB = query(obj1, '*STB?');
+fclose(obj1)
+delete(obj1)
+clear obj1
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
