@@ -8,7 +8,7 @@ print('Port: ',ser.name)         # check which port was really use
 #      auto 1  - read after write automatic
 if ser.is_open:
     ser.write(b'++mode 1\n') #controller mode
-    ser.write(b'++auto 0\n') #auto read after write
+    ser.write(b'++auto 0\n') #no auto read after write
 
     # talk to HP 34401
     ser.write(b'++addr 23\n')
