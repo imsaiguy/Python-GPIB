@@ -5,3 +5,5 @@ I use a HP 34401 multimeter,
         all on the same bus
 
 one file is matlab control of the keithley using RS232
+
+added file that runs a IV (current vs voltage) on the Keithley 2400 and plots the curve
